@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.usuario import Usuario
-from app.auth import verify_password, create_access_token
+from app.auth import verify_password, create_access_token, get_scopes_by_role
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -19,15 +19,18 @@ def get_db():
 def login(correo: str, password: str, db: Session = Depends(get_db)):
     usuario = db.query(Usuario).filter(Usuario.correo == correo).first()
 
-    if not usuario or not verify_password(password, usuario.password):
+    if not usuario:
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
-    # 🎟️ Payload del token
+    if not verify_password(password, usuario.password_hash):
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+
+    # 🔥 AQUÍ ESTÁ LA CLAVE DEL TALLER
     token_data = {
         "sub": usuario.correo,
         "id_usuario": usuario.id_usuario,
         "rol": usuario.rol,
-        "scopes": ["user"],  # puedes ajustar según rol
+        "scopes": get_scopes_by_role(usuario.rol)
     }
 
     access_token = create_access_token(token_data)

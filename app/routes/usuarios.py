@@ -1,4 +1,3 @@
-from app.auth.security import hash_password
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database import SessionLocal

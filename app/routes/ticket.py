@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app.models.ticket import Ticket
 from app.schemas.ticket import TicketCreate, TicketResponse, TicketEstadoUpdate
+from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -15,8 +16,12 @@ def get_db():
         db.close()
 
 
-@router.post("/", response_model=TicketResponse)
-def crear_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
+@router.post("/")
+def crear_ticket(
+    ticket: TicketCreate,
+    db: Session = Depends(get_db),
+    user=Security(get_current_user, scopes=["tickets:crear"])
+):
     nuevo = Ticket(**ticket.dict())
     db.add(nuevo)
     db.commit()
@@ -24,8 +29,11 @@ def crear_ticket(ticket: TicketCreate, db: Session = Depends(get_db)):
     return nuevo
 
 
-@router.get("/", response_model=list[TicketResponse])
-def listar_tickets(db: Session = Depends(get_db)):
+@router.get("/")
+def listar_tickets(
+    db: Session = Depends(get_db),
+    user=Security(get_current_user, scopes=["tickets:ver_propios"])
+):
     return db.query(Ticket).all()
 
 
@@ -37,8 +45,13 @@ def obtener_ticket(id_ticket: int, db: Session = Depends(get_db)):
     return ticket
 
 
-@router.patch("/{id_ticket}/estado", response_model=TicketResponse)
-def cambiar_estado(id_ticket: int, data: TicketEstadoUpdate, db: Session = Depends(get_db)):
+@router.patch("/{id_ticket}/estado")
+def cambiar_estado(
+    id_ticket: int,
+    data: TicketEstadoUpdate,
+    db: Session = Depends(get_db),
+    user=Security(get_current_user, scopes=["tickets:atender"])
+):
     ticket = db.query(Ticket).filter(Ticket.id_ticket == id_ticket).first()
 
     if not ticket:
